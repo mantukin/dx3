@@ -1,0 +1,26 @@
+# Node.js
+node_modules/
+dist/
+npm-debug.log
+yarn-error.log
+
+# Rust / Tauri
+src-tauri/target/
+target/
+**/*.rs.bk
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.user
+
+# Build artifacts
+src-tauri/gen/schemas/
+src-tauri/icons/icon.icns
+src-tauri/icons/icon.ico
+
+# Private
+.env
