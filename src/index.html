@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <title>Dx3 Controller</title>
+    <style>
+        @font-face {
+            font-family: 'ZeldaPixel';
+            src: url('fonts/zelda.ttf') format('truetype');
+        }
+
+        @font-face {
+            font-family: 'Tiny5';
+            src: url('fonts/Tiny5-Regular.ttf') format('truetype');
+        }
+
+        body {
+            background-color: #1e1e1e;
+            color: #ccc;
+            font-family: Consolas, "Courier New", monospace;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #2b2b2b;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+
+        /* Header */
+        .header {
+            background: #252526;
+            padding: 8px 15px;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .status-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .status-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+        }
+
+        .label {
+            color: #888;
+            font-size: 12px;
+            display: inline-block;
+            vertical-align: middle;
+            line-height: 1.2;
+        }
+
+        .header .label {
+            font-family: 'Tiny5', sans-serif;
+            font-size: 14px;
+            letter-spacing: 0.2px;
+        }
+
+        .value {
+            color: #fff;
+            font-family: 'ZeldaPixel', sans-serif;
+            font-size: 14px;
+            font-weight: normal;
+            display: inline-block;
+            letter-spacing: 0.5px;
+            line-height: 1.2;
+        }
+
+        #battery-val {
+            font-family: 'Tiny5', sans-serif;
+            font-size: 14px;
+            padding-top: 0;
+        }
+
+        .value.active {
+            color: #4CAF50;
+        }
+
+        .value.warn {
+            color: #FFC107;
+        }
+
+        .value.error {
+            color: #e06c75;
+        }
+
+        .controls-group {
+            display: flex;
+            align-items: flex-end;
+            flex-direction: column;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .checkbox-row input[type="checkbox"] {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .header .checkbox-row {
+            font-family: 'Tiny5', sans-serif;
+            font-size: 14px;
+        }
+
+        button {
+            background: #3c3c3c;
+            color: #f0f0f0;
+            border: 1px solid #555;
+            padding: 4px 12px;
+            font-family: inherit;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.1s;
+        }
+
+        .header button {
+            font-family: 'Tiny5', sans-serif;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #505050;
+        }
+
+        button:active {
+            background: #2d2d2d;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Visualizer */
+        .visualizer-wrapper {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #1e1e1e;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #gamepad-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Debug Overlay */
+        .debug-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(30, 30, 30, 0.98);
+            display: none;
+            /* Toggled */
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 20px;
+            z-index: 100;
+        }
+
+        .debug-section {
+            border: 1px solid #3e3e42;
+            padding: 10px;
+            margin-bottom: 15px;
+            background: #252526;
+        }
+
+        .debug-header {
+            font-size: 14px;
+            color: #61afef;
+            margin-bottom: 10px;
+            font-weight: bold;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+
+        /* Hex Grid */
+        .hex-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 2px;
+            font-family: monospace;
+            font-size: 11px;
+            margin-bottom: 10px;
+        }
+
+        .hex-cell {
+            background: #333;
+            padding: 4px;
+            text-align: center;
+            border-radius: 2px;
+        }
+
+        .hex-cell.nonzero {
+            color: #fff;
+            background: #444;
+        }
+
+        .hex-cell span {
+            color: #888;
+            font-size: 9px;
+            display: block;
+        }
+
+        /* Form Layouts */
+        .form-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        input[type="number"],
+        input[type="text"] {
+            background: #1e1e1e;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 3px;
+            font-family: monospace;
+            width: 50px;
+        }
+
+        input[type="range"],
+        input[type="checkbox"] {
+            vertical-align: middle;
+            accent-color: #61afef;
+        }
+
+        /* Specific Colors for RGB Sliders */
+        #main-sld-r, #sld-r { accent-color: #e06c75; }
+        #main-sld-g, #sld-g { accent-color: #98c379; }
+        #main-sld-b, #sld-b { accent-color: #61afef; }
+        #main-sld-bright { accent-color: #abb2bf; }
+
+        .log-box {
+            background: #111;
+            border: 1px solid #444;
+            padding: 5px;
+            height: 100px;
+            overflow-y: auto;
+            font-size: 11px;
+            white-space: pre-wrap;
+            color: #aaa;
+        }
+
+        .info-text {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .separator {
+            height: 1px;
+            background: #333;
+            margin: 10px 0;
+        }
+
+        /* Mapping UI */
+        .mapping-row {
+            display: flex;
+            align-items: center;
+            background: #2d2d2d;
+            padding: 8px 12px;
+            border-radius: 4px;
+            gap: 15px;
+        }
+
+        .mapping-row:hover {
+            background: #353535;
+        }
+
+        .mapping-row.active {
+            border-left: 3px solid #4CAF50;
+        }
+
+        .mapping-source {
+            width: 100px;
+            font-weight: bold;
+            color: #61afef;
+        }
+
+        .mapping-targets {
+            flex: 1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .target-tag {
+            background: #3e4451;
+            color: #abb2bf;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .target-tag.xbox {
+            background: #2c5e2e;
+            color: #fff;
+        }
+
+        .target-tag.kb {
+            background: #4b5263;
+            color: #fff;
+        }
+
+        .target-tag.mouse {
+            background: #5c6370;
+            color: #fff;
+        }
+
+        .target-tag .remove {
+            cursor: pointer;
+            color: #e06c75;
+            font-weight: bold;
+            padding: 0 2px;
+        }
+
+        .btn-add-target {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+        }
+
+        /* Xbox Selector Grid */
+        .xbox-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            background: #252526;
+            padding: 8px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .btn-xbox-pick {
+            background: #2c5e2e;
+            color: white;
+            border: 1px solid #3e8e41;
+            padding: 4px;
+            font-size: 10px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .btn-xbox-pick:hover {
+            background: #3e8e41;
+        }
+
+        /* Action Picker Overlay */
+        #action-picker {
+            position: absolute;
+            background: rgba(37, 37, 38, 0.95);
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 10px;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            min-width: 150px;
+        }
+
+        .picker-header {
+            font-size: 12px;
+            font-weight: bold;
+            color: #61afef;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+
+        #main-options,
+        #xbox-options {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .picker-option {
+            background: #3c3c3c;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-align: center;
+        }
+
+        .picker-option:hover {
+            background: #505050;
+        }
+
+        .picker-option.active {
+            background: #2c5e2e;
+        }
+
+        .recording-notice {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(224, 108, 117, 0.9);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            display: none;
+            z-index: 2000;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* Unified UI Panels */
+        .ui-panel {
+            background: rgba(35, 35, 35, 0.9);
+            border: 1px solid #444;
+            border-radius: 6px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+            pointer-events: auto;
+        }
+
+        /* Deadzone Controls */
+        .deadzone-control {
+            position: absolute;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            z-index: 10;
+            width: 160px;
+            box-sizing: border-box;
+        }
+
+        .dz-row {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 2px;
+        }
+
+        .dz-label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .deadzone-control span {
+            font-family: 'Tiny5', sans-serif;
+            font-size: 8px;
+            color: #61afef;
+            font-weight: normal;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .dz-input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .deadzone-control input[type="range"] {
+            flex: 1;
+            min-width: 0; /* Allow shrinking below default browser size */
+            margin: 0;
+            cursor: pointer;
+            height: 16px;
+        }
+
+        .deadzone-control input[type="number"] {
+            width: 42px !important;
+            height: 18px;
+            font-size: 10px;
+            text-align: center;
+            background: #1e1e1e;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 0;
+            font-family: inherit;
+            flex-shrink: 0;
+        }
+
+        .deadzone-control input[type="number"]::-webkit-inner-spin-button,
+        .deadzone-control input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* RGB Widget */
+        .rgb-widget {
+            position: absolute;
+            /* Bottom set by JS */
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 20;
+            min-width: 400px;
+        }
+
+        .rgb-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .rgb-widget .label {
+            font-family: 'Tiny5', sans-serif;
+            color: #61afef;
+            font-size: 10px;
+            letter-spacing: 1px;
+            min-width: 60px;
+        }
+
+        .rgb-sliders {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .rgb-slider-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .rgb-slider-group span {
+            font-size: 11px;
+            width: 12px;
+            font-weight: bold;
+        }
+
+        .rgb-slider-group input {
+            width: 60px;
+            cursor: pointer;
+        }
+
+        #main-sld-bright {
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .color-preview {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 1px solid #666;
+            flex-shrink: 0;
+        }
+
+        /* Trigger Controls */
+        .trigger-control {
+            position: absolute;
+            width: 160px;
+            z-index: 30;
+        }
+
+        .trigger-main-box {
+            width: 100%;
+            padding: 4px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            box-sizing: border-box;
+        }
+
+        .trigger-label {
+            font-family: 'Tiny5', sans-serif;
+            font-size: 9px;
+            color: #61afef;
+            font-weight: normal;
+            letter-spacing: 0.5px;
+        }
+
+        .trigger-main-box select {
+            width: 90px;
+            background: #222;
+            color: #eee;
+            border: 1px solid #555;
+            font-size: 10px;
+            padding: 1px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .trigger-param {
+            position: absolute;
+            display: none;
+            /* Shown via JS */
+            flex-direction: column;
+            align-items: center;
+            gap: 1px;
+            pointer-events: auto;
+            z-index: 30;
+        }
+
+        .v-slider-box {
+            background: transparent;
+            padding: 0;
+            border: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .v-slider-box span {
+            font-family: 'Tiny5', sans-serif;
+            font-size: 8px;
+            color: #888;
+            font-weight: normal;
+            margin-bottom: 2px;
+            writing-mode: horizontal-tb;
+        }
+
+        input[type="range"].vertical {
+            -webkit-appearance: slider-vertical;
+            width: 20px;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .v-slider-box.long input {
+            height: 180px;
+        }
+
+        .v-slider-box.short input {
+            height: 120px;
+        }
+
+        /* Main Window Profile Selector */
+        .main-profile-selector {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            z-index: 20;
+            padding: 6px 12px;
+        }
+
+        .main-profile-selector select {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 13px;
+            min-width: 150px;
+            cursor: pointer;
+        }
+
+        .main-profile-selector .label {
+            font-family: 'Tiny5', sans-serif;
+            font-size: 10px;
+            letter-spacing: 1px;
+            color: #61afef;
+        }
+
+        /* GitHub Icon */
+        .github-link {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            z-index: 1000;
+            opacity: 0.4;
+            transition: opacity 0.2s, transform 0.2s;
+            cursor: pointer;
+            will-change: transform, opacity;
+            backface-visibility: hidden;
+            -webkit-font-smoothing: subpixel-antialiased;
+        }
+
+        .github-link:hover {
+            opacity: 0.9;
+            transform: scale(1.1) translateZ(0);
+        }
+
+        .github-link img {
+            width: 48px;
+            height: 48px;
+            display: block;
+            image-rendering: -webkit-optimize-contrast;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Loading Mask to prevent FOUC (Flash of Unstyled Content) -->
+    <div id="app-loader" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #1e1e1e; z-index: 999999; display: flex; justify-content: center; align-items: center;">
+        <span style="font-family: monospace; color: #444; font-size: 12px;">Loading...</span>
+    </div>
+
+    <a id="github-icon" class="github-link">
+        <img id="github-img" alt="GitHub">
+    </a>
+
+    <div id="action-picker">
+        <div class="picker-header" id="picker-title">Map Button</div>
+        <div id="main-options">
+            <div class="picker-option" id="opt-xbox">Assign Xbox Action</div>
+            <div class="picker-option" id="opt-record">Record Key or Mouse</div>
+            <div class="picker-option" id="opt-mouse-move" style="display:none">Mouse Cursor Control</div>
+            <div class="picker-option" id="opt-mouse-scroll" style="display:none">Mouse Scroll Wheel</div>
+            <div class="picker-option" id="opt-clear" style="background: #722f37; margin-top:5px;">Reset to Default</div>
+        </div>
+        <div id="xbox-options" style="display:none;">
+            <div id="xbox-grid" class="xbox-selector" style="border:none; padding:0; margin:0;">
+                <!-- JS generated -->
+            </div>
+            <div class="picker-option" id="opt-back" style="margin-top:10px; background:#444;">&larr; Back</div>
+        </div>
+    </div>
+
+    <div id="recording-overlay" class="recording-notice">
+        RECORDING INPUT... PRESS ANY KEY OR BUTTON
+    </div>
+
+    <div class="header">
+        <div class="status-group">
+            <div class="status-line" style="gap: 12px;">
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <span class="label">STATUS:</span>
+                    <span id="status-val" class="value" style="min-width: 85px;">Disconnected</span>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <span class="label">Xbox Device:</span>
+                    <span id="status-xbox" class="value">Hidden</span>
+                </div>
+            </div>
+
+            <div class="status-line" style="gap: 12px;">
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <span class="label">ViGEmBus:</span>
+                    <span id="status-vigem" class="value">OK</span>
+                    <button id="btn-dl-vigem" style="background: #722f37; border-color: #a33; font-size: 8px; padding: 0px 4px; display: none;">DOWNLOAD</button>
+                    <button id="btn-check-vigem" title="Check Driver" style="background: #444; border-color: #666; font-size: 10px; padding: 0px 5px; margin-left:2px;">⟳</button>
+                </div>
+                
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <span class="label">HidHide:</span>
+                    <span id="status-hidhide" class="value">OK</span>
+                    <button id="btn-dl-hidhide" style="background: #722f37; border-color: #a33; font-size: 8px; padding: 0px 4px; display: none;">DOWNLOAD</button>
+                    <button id="btn-check-hidhide" title="Check Driver" style="background: #444; border-color: #666; font-size: 10px; padding: 0px 5px; margin-left:2px;">⟳</button>
+                </div>
+            </div>
+            <div class="status-line" style="gap: 12px;">
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <span class="label">DEVICE:</span>
+                    <span id="device-val" class="value">None</span>
+                </div>
+                
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <span id="battery-val" class="value" style="min-width: 35px;"></span>
+                    <label class="checkbox-row" style="color: #888; font-size: 10px; margin-left: 5px;">
+                        <input type="checkbox" id="chk-bat-led"> Bat LED
+                    </label>
+                </div>
+            </div>
+            <div id="conn-line" class="status-line">
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <span class="label">CONNECTION:</span>
+                    <span id="conn-mode" class="value">None</span>
+                </div>
+                <button id="btn-disconnect"
+                                                style="margin-left: 15px; background: #722f37; border-color: #a33; font-size: 10px; padding: 2px 8px; display: none;">Reconnect</button>
+                <span id="conn-warning" style="color: #e06c75; font-size: 10px; margin-left: 10px; display: none;">
+                    ⚠ Simple Mode: Reconnect controller for best performance!
+                </span>
+            </div>
+        </div>
+        <div class="controls-group">
+            <label class="checkbox-row">
+                <input type="checkbox" id="chk-hide">
+                Hide Original
+            </label>
+            <label class="checkbox-row">
+                <input type="checkbox" id="chk-minimized">
+                Start Minimized
+            </label>
+            <div style="display: flex; gap: 5px;">
+                <button id="btn-remapping-toggle">Remapping</button>
+                <button id="btn-debug-toggle">Show Debug</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="visualizer-wrapper">
+            <canvas id="gamepad-canvas"></canvas>
+
+            <div id="main-profile-ctrl" class="main-profile-selector ui-panel">
+                <span class="label">ACTIVE PROFILE</span>
+                <select id="sel-profiles-main">
+                    <option value="Default">Default</option>
+                </select>
+            </div>
+
+            <div id="dz-left-ctrl" class="deadzone-control ui-panel">
+                <div class="dz-row">
+                    <div class="dz-label-row">
+                        <span>Deadzone L</span>
+                    </div>
+                    <div class="dz-input-group">
+                        <input type="range" id="sld-dz-left" min="0" max="0.5" step="0.01" value="0.1">
+                        <input type="number" id="inp-dz-left" min="0" max="0.5" step="0.01" value="0.1">
+                    </div>
+                </div>
+                <div id="sens-left-box" style="display:none; width: 100%;">
+                    <div class="dz-row">
+                        <div class="dz-label-row">
+                            <span>Mouse Sens L</span>
+                        </div>
+                        <div class="dz-input-group">
+                            <input type="range" id="sld-sens-left" min="1" max="100" step="1" value="25">
+                            <input type="number" id="inp-sens-left" min="1" max="100" step="1" value="25">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="dz-right-ctrl" class="deadzone-control ui-panel">
+                <div class="dz-row">
+                    <div class="dz-label-row">
+                        <span>Deadzone R</span>
+                    </div>
+                    <div class="dz-input-group">
+                        <input type="range" id="sld-dz-right" min="0" max="0.5" step="0.01" value="0.1">
+                        <input type="number" id="inp-dz-right" min="0" max="0.5" step="0.01" value="0.1">
+                    </div>
+                </div>
+                <div id="sens-right-box" style="display:none; width: 100%;">
+                    <div class="dz-row">
+                        <div class="dz-label-row">
+                            <span>Mouse Sens R</span>
+                        </div>
+                        <div class="dz-input-group">
+                            <input type="range" id="sld-sens-right" min="1" max="100" step="1" value="25">
+                            <input type="number" id="inp-sens-right" min="1" max="100" step="1" value="25">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Adaptive Trigger Controls -->
+            <div id="trigger-l2-ctrl" class="trigger-control">
+                <div class="trigger-main-box ui-panel">
+                    <span class="trigger-label">L2 ADAPTIVE</span>
+                    <select id="sel-trigger-l2-mode">
+                        <option value="0">Off</option>
+                        <option value="1">Rigid</option>
+                        <option value="33">Section</option>
+                        <option value="2">Pulse</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="trigger-l2-start-box" class="trigger-param v-slider-box long">
+                <span>START</span>
+                <input type="range" id="sld-trigger-l2-start" class="vertical" min="0" max="255" value="0">
+            </div>
+            <div id="trigger-l2-force-box" class="trigger-param v-slider-box short">
+                <span>FORCE</span>
+                <input type="range" id="sld-trigger-l2-force" class="vertical" min="0" max="255" value="0">
+            </div>
+
+            <div id="trigger-r2-ctrl" class="trigger-control">
+                <div class="trigger-main-box ui-panel">
+                    <span class="trigger-label">R2 ADAPTIVE</span>
+                    <select id="sel-trigger-r2-mode">
+                        <option value="0">Off</option>
+                        <option value="1">Rigid</option>
+                        <option value="33">Section</option>
+                        <option value="2">Pulse</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="trigger-r2-start-box" class="trigger-param v-slider-box long">
+                <span>START</span>
+                <input type="range" id="sld-trigger-r2-start" class="vertical" min="0" max="255" value="0">
+            </div>
+            <div id="trigger-r2-force-box" class="trigger-param v-slider-box short">
+                <span>FORCE</span>
+                <input type="range" id="sld-trigger-r2-force" class="vertical" min="0" max="255" value="0">
+            </div>
+
+            <div id="sens-touch-ctrl" class="ui-panel" style="position: absolute; display: none; padding: 6px 10px; width: 230px; box-sizing: border-box; flex-direction: column; gap: 4px; z-index: 25;">
+                <div class="dz-row">
+                    <div class="dz-label-row" style="margin-bottom: 2px;">
+                        <span style="font-size: 9px; color: #61afef; font-weight: bold; letter-spacing: 0.5px; text-transform: uppercase;">Touchpad Sens</span>
+                    </div>
+                    <div class="dz-input-group">
+                        <input type="range" id="sld-sens-touch" min="1" max="100" step="1" value="25" style="flex:1; height: 16px; margin-right: 5px;">
+                        <input type="number" id="inp-sens-touch" min="1" max="100" step="1" value="25" style="width: 40px; height: 18px; font-size: 10px; text-align: center; background: #1e1e1e; border: 1px solid #444; color: #fff; padding: 0;">
+                    </div>
+                </div>
+            </div>
+
+            <div id="rgb-ctrl" class="rgb-widget ui-panel">
+                <div class="rgb-row">
+                    <span class="label">TOUCHPAD LIGHTBAR</span>
+                    <div class="rgb-sliders">
+                        <div class="rgb-slider-group">
+                            <span style="color: #e06c75;">R</span>
+                            <input type="range" id="main-sld-r" min="0" max="255" value="0">
+                        </div>
+                        <div class="rgb-slider-group">
+                            <span style="color: #98c379;">G</span>
+                            <input type="range" id="main-sld-g" min="0" max="255" value="0">
+                        </div>
+                        <div class="rgb-slider-group">
+                            <span style="color: #61afef;">B</span>
+                            <input type="range" id="main-sld-b" min="0" max="255" value="255">
+                        </div>
+                    </div>
+                </div>
+                <div class="rgb-row">
+                    <span class="label" style="color: #ccc; font-size: 9px;">BRIGHTNESS</span>
+                    <input type="range" id="main-sld-bright" min="0" max="255" value="255">
+                    
+                    <span class="label">PLAYER LED's:</span>
+
+                    <select id="sel-pled-bright" style="background: #333; color: #fff; border: 1px solid #555; border-radius: 3px; font-size: 9px; padding: 2px;">
+                        <option value="0">High</option>
+                        <option value="1">Med</option>
+                        <option value="2">Low</option>
+                    </select>
+
+                    <div id="main-color-preview" class="color-preview" style="background: blue;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="remapping-panel" class="debug-panel">
+            <div class="debug-section">
+                <div class="debug-header">Button Remapping</div>
+                <div class="info-text">Assign Xbox buttons, Keyboard keys, or Mouse clicks to controller buttons.</div>
+
+                <!-- Profile Management -->
+                <div
+                    style="background: #1e1e1e; padding: 10px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #333;">
+                    <div class="label" style="margin-bottom: 8px;">MAPPING PROFILES</div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <select id="sel-profiles"
+                            style="background:#333; color:#fff; border:1px solid #555; padding: 4px; flex: 1; min-width: 120px;">
+                            <option value="">-- Select Profile --</option>
+                        </select>
+                        <button id="btn-delete-profile" style="background: #722f37;">Delete</button>
+                    </div>
+                    <div style="height: 1px; background: #333; margin: 10px 0;"></div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="inp-profile-name" placeholder="Profile Name..."
+                            style="flex: 1; width: auto;">
+                        <button id="btn-save-profile" style="background: #2c5e2e;">Save Current</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                    <button id="btn-reset-mappings" style="background: #722f37; border-color: #a33">Reset to
+                        Defaults</button>
+                    <span class="info-text" style="align-self: center;">Tip: Press a button on controller while
+                        recording to map Xbox actions.</span>
+                </div>
+                <div id="mapping-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- JS generated -->
+                </div>
+            </div>
+            <div style="height: 50px;"></div>
+        </div>
+
+        <div id="debug-panel" class="debug-panel">
+            <!-- Raw Report -->
+            <div class="debug-section">
+                <div class="debug-header">Raw HID Report <span id="report-mode"
+                        style="font-weight:normal; color:#aaa; font-size:11px; margin-left:10px;"></span></div>
+                <div id="hex-grid" class="hex-grid">
+                    <!-- JS generated -->
+                </div>
+            </div>
+
+            <!-- Fuzzer -->
+            <div class="debug-section">
+                <div class="debug-header">LED Fuzzer / Discovery</div>
+                <div class="info-text">Automatically cycle through offsets to find LED triggers.</div>
+                <div class="form-row">
+                    <button id="btn-fuzzer">START Auto-Discovery</button>
+                    <span id="fuzzer-status" style="color:#e5c07b;">Stopped.</span>
+                </div>
+                <div class="form-row">
+                    <span class="label">Path:</span>
+                    <span id="device-path" style="font-size:10px; color:#aaa;">...</span>
+                </div>
+                <div class="form-row">
+                    <span class="label">Last Write:</span>
+                    <span id="last-write-status" style="color:#98c379;">None</span>
+                </div>
+                <div class="log-box" id="packet-hex" style="height:40px;"></div>
+            </div>
+
+            <!-- Manual Override -->
+            <div class="debug-section">
+                <div class="debug-header">Manual Override</div>
+
+                <div class="form-row">
+                    <span class="label">Rep ID (Hex):</span> <input type="text" id="inp-rep-id" value="02">
+                    <span class="label">Flag Off:</span> <input type="number" id="inp-flag-off" value="2">
+                    <span class="label">RGB Off:</span> <input type="number" id="inp-rgb-off" value="45">
+                </div>
+
+                <div class="form-row">
+                    <span class="label">Player LED:</span> <input type="number" id="inp-pled" value="0" min="0" max="255">
+                    <span class="label">P.Bright:</span> <input type="number" id="inp-pled-bright" value="0" min="0" max="255">
+                    <span class="label">P.Br Off:</span> <input type="number" id="inp-pled-bright-off" value="44" min="0" max="255">
+                </div>
+
+                <div class="form-row">
+                    <span class="label">BT Flags (B2):</span> <input type="text" id="inp-bt-flags" value="F7">
+                    <span class="label">BT Flags (B3):</span> <input type="text" id="inp-bt-flags2" value="15">
+                    <span class="label">BT Len:</span> <input type="number" id="inp-bt-len" value="78">
+                    <label class="checkbox-row"><input type="checkbox" id="chk-feature"> As Feature</label>
+                </div>
+
+                <div class="form-row">
+                    <span class="label" style="color:red">R:</span> <input type="range" id="sld-r" min="0" max="255"
+                        value="255">
+                    <span class="label" style="color:green">G:</span> <input type="range" id="sld-g" min="0" max="255"
+                        value="0">
+                    <span class="label" style="color:blue">B:</span> <input type="range" id="sld-b" min="0" max="255"
+                        value="0">
+                    <button id="btn-manual-send">Send Manual NOW</button>
+                </div>
+            </div>
+
+            <!-- Config -->
+            <div class="debug-section">
+                <div class="debug-header">Configuration</div>
+                <div class="form-row">
+                    <label class="checkbox-row"><input type="checkbox" id="chk-no-periodic"> Disable Periodic</label>
+                    <span class="separator" style="width:1px; height:15px; margin:0 10px;"></span>
+                    <span class="label">CRC Seed:</span>
+                    <select id="sel-crc" style="background:#333; color:#fff; border:1px solid #555;">
+                        <option value="0">Std (0xFF)</option>
+                        <option value="1">Zero (0x00)</option>
+                        <option value="2">0xA1</option>
+                        <option value="3">0xA2</option>
+                        <option value="4">Head (0xA2)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Scanner -->
+            <div class="debug-section">
+                <div class="debug-header">Scanner</div>
+                <div class="form-row">
+                    <button id="btn-sweep">Start RGB Sweep</button>
+                    <span class="label">Speed (ms):</span>
+                    <input type="number" id="inp-sweep-speed" value="250" step="50">
+                </div>
+            </div>
+
+            <!-- Pinpoint -->
+            <div class="debug-section">
+                <div class="debug-header">Pinpoint Byte Tester</div>
+                <div class="form-row">
+                    <span class="label">Offset:</span> <input type="number" id="inp-pp-off" value="45">
+                    <span class="label">Value:</span> <input type="number" id="inp-pp-val" value="255">
+                    <button id="btn-pp-send">SEND ONE BYTE</button>
+                </div>
+            </div>
+
+            <!-- Logs -->
+            <div class="debug-section">
+                <div class="debug-header">Detected Devices</div>
+                <div class="log-box" id="log-devices">Scanning...</div>
+            </div>
+
+            <div class="debug-section">
+                <div class="debug-header">Protocol Scanner</div>
+                <button id="btn-proto-scan">RUN PROTOCOL SCAN (Wait ~5s)</button>
+                <div class="log-box" id="log-proto" style="margin-top:5px; height:150px;">Ready.</div>
+            </div>
+
+            <div style="height: 50px;"></div> <!-- Spacer -->
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+
+</html>
