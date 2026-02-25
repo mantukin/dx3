@@ -880,9 +880,12 @@ fn apply_deadzone(x: f32, y: f32, deadzone: f32) -> (f32, f32) {
     if magnitude < deadzone {
         (0.0, 0.0)
     } else {
-        // Rescale magnitude to start from 0 at the edge of the deadzone
+        // Rescale magnitude to start from 0 at the edge of the deadzone.
+        // Multiply by 1.05 to stretch the output so that the physical analog stick's
+        // circular gate (which may max out ~0.95-0.99) can comfortably reach
+        // the full 1.0 logical bound. `as i16` saturates automatically on XInput conversion.
         let rescaled_magnitude = (magnitude - deadzone) / (1.0 - deadzone);
-        let ratio = rescaled_magnitude / magnitude;
+        let ratio = (rescaled_magnitude / magnitude) * 1.05;
         (x * ratio, y * ratio)
     }
 }
@@ -997,7 +1000,7 @@ fn update_virtual_pad(
 
     for m in mappings {
         if m.source.is_axis() {
-            let (ax, ay) = match m.source {
+            let (ax_smooth, ay_smooth) = match m.source {
                 crate::mapping::PhysicalButton::LeftStick => (lx, ly),
                 crate::mapping::PhysicalButton::RightStick => (rx, ry),
                 crate::mapping::PhysicalButton::L2 => (s.l2, 0.0),
@@ -1005,6 +1008,16 @@ fn update_virtual_pad(
                 crate::mapping::PhysicalButton::Touchpad => (0.0, 0.0), // Handled specifically
                 _ => (0.0, 0.0)
             };
+            
+            let (ax_raw, ay_raw) = match m.source {
+                crate::mapping::PhysicalButton::LeftStick => (lx_raw, ly_raw),
+                crate::mapping::PhysicalButton::RightStick => (rx_raw, ry_raw),
+                crate::mapping::PhysicalButton::L2 => (s.l2, 0.0),
+                crate::mapping::PhysicalButton::R2 => (s.r2, 0.0),
+                crate::mapping::PhysicalButton::Touchpad => (0.0, 0.0), // Handled specifically
+                _ => (0.0, 0.0)
+            };
+
             // Apply axis mappings
             for t in &m.targets {
                 match t {
@@ -1014,26 +1027,26 @@ fn update_virtual_pad(
                             mouse_dy += touch_dy;
                         } else {
                             let sens = if m.source == crate::mapping::PhysicalButton::LeftStick { sens_l } else { sens_r };
-                            mouse_dx += ax * sens * time_scale;
-                            mouse_dy += ay * sens * time_scale;
+                            mouse_dx += ax_smooth * sens * time_scale;
+                            mouse_dy += ay_smooth * sens * time_scale;
                         }
                     }
                     MappingTarget::MouseScroll { speed } => {
                         // Touchpad delta is raw (e.g. 100), stick is 0.0-1.0. Scale touchpad WAY down.
-                        let val = if m.source == crate::mapping::PhysicalButton::Touchpad { touch_dy * 0.05 } else { ay };
+                        let val = if m.source == crate::mapping::PhysicalButton::Touchpad { touch_dy * 0.05 } else { ay_smooth };
                         scroll_dy -= val * speed * time_scale; 
                     }
                     MappingTarget::XboxLT => {
-                        xbox_lt = xbox_lt.max(ax);
+                        xbox_lt = xbox_lt.max(ax_raw);
                     }
                     MappingTarget::XboxRT => {
-                        xbox_rt = xbox_rt.max(ax);
+                        xbox_rt = xbox_rt.max(ax_raw);
                     }
                     MappingTarget::XboxLS => {
-                        xbox_ls = (ax, ay);
+                        xbox_ls = (ax_raw, ay_raw);
                     }
                     MappingTarget::XboxRS => {
-                        xbox_rs = (ax, ay);
+                        xbox_rs = (ax_raw, ay_raw);
                     }
                     _ => {}
                 }

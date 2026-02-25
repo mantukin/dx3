@@ -13,6 +13,7 @@ target/
 .DS_Store
 Thumbs.db
 .vscode/
+.gemqol/
 .idea/
 *.swp
 *.user
