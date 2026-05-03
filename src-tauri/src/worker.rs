@@ -1055,7 +1055,21 @@ fn update_virtual_pad(
                         if ax_smooth < -threshold { current_keys.insert(*left); }
                         if ax_smooth > threshold { current_keys.insert(*right); }
                     }
-                    _ => {}
+                    MappingTarget::Xbox(bit) => {
+                        if ax_smooth.abs() > 0.5 || ay_smooth.abs() > 0.5 {
+                            raw_buttons |= bit;
+                        }
+                    }
+                    MappingTarget::Keyboard(vk) => {
+                        if ax_smooth.abs() > 0.5 || ay_smooth.abs() > 0.5 {
+                            current_keys.insert(*vk);
+                        }
+                    }
+                    MappingTarget::Mouse(btn) => {
+                        if ax_smooth.abs() > 0.5 || ay_smooth.abs() > 0.5 {
+                            current_mouse.insert(*btn);
+                        }
+                    }
                 }
             }
         } else if m.source.get_value(s) {
