@@ -86,6 +86,7 @@ pub enum MappingTarget {
     Mouse(u8),      // 0: Left, 1: Right, 2: Middle
     MouseMove { x_speed: f32, y_speed: f32 },
     MouseScroll { speed: f32 },
+    KeyboardStick { up: u16, down: u16, left: u16, right: u16 },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

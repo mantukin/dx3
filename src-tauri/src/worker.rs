@@ -1048,6 +1048,13 @@ fn update_virtual_pad(
                     MappingTarget::XboxRS => {
                         xbox_rs = (ax_raw, ay_raw);
                     }
+                    MappingTarget::KeyboardStick { up, down, left, right } => {
+                        let threshold = 0.5;
+                        if ay_smooth < -threshold { current_keys.insert(*up); }
+                        if ay_smooth > threshold { current_keys.insert(*down); }
+                        if ax_smooth < -threshold { current_keys.insert(*left); }
+                        if ax_smooth > threshold { current_keys.insert(*right); }
+                    }
                     _ => {}
                 }
             }

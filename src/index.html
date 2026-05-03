@@ -781,11 +781,14 @@
 
     <div id="action-picker">
         <div class="picker-header" id="picker-title">Map Button</div>
+        <div id="picker-current" style="font-size:12px; margin: 0 10px 10px 10px; padding: 4px; background: #222; border-radius: 3px; border: 1px solid #444; color: #00ff80; text-align: center;">Current: None</div>
         <div id="main-options">
             <div class="picker-option" id="opt-xbox">Assign Xbox Action</div>
             <div class="picker-option" id="opt-record">Record Key or Mouse</div>
             <div class="picker-option" id="opt-mouse-move" style="display:none">Mouse Cursor Control</div>
             <div class="picker-option" id="opt-mouse-scroll" style="display:none">Mouse Scroll Wheel</div>
+            <div class="picker-option" id="opt-wasd" style="display:none">WASD Keys</div>
+            <div class="picker-option" id="opt-arrows" style="display:none">Arrow Keys</div>
             <div class="picker-option" id="opt-clear" style="background: #722f37; margin-top:5px;">Reset to Default</div>
         </div>
         <div id="xbox-options" style="display:none;">
@@ -876,9 +879,12 @@
 
             <div id="main-profile-ctrl" class="main-profile-selector ui-panel">
                 <span class="label">ACTIVE PROFILE</span>
-                <select id="sel-profiles-main">
-                    <option value="Default">Default</option>
-                </select>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <select id="sel-profiles-main">
+                        <option value="Default">Default</option>
+                    </select>
+                    <button id="btn-add-profile-main" style="background: #2c5e2e; padding: 2px 8px; font-weight: bold; font-size: 12px; border-radius: 3px;" title="New Profile">+</button>
+                </div>
             </div>
 
             <div id="dz-left-ctrl" class="deadzone-control ui-panel">
@@ -1030,13 +1036,9 @@
                             style="background:#333; color:#fff; border:1px solid #555; padding: 4px; flex: 1; min-width: 120px;">
                             <option value="">-- Select Profile --</option>
                         </select>
+                        <button id="btn-add-profile-remap" style="background: #2c5e2e;">+ New</button>
+                        <button id="btn-save-profile" style="background: #2c5e2e;">Save</button>
                         <button id="btn-delete-profile" style="background: #722f37;">Delete</button>
-                    </div>
-                    <div style="height: 1px; background: #333; margin: 10px 0;"></div>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <input type="text" id="inp-profile-name" placeholder="Profile Name..."
-                            style="flex: 1; width: auto;">
-                        <button id="btn-save-profile" style="background: #2c5e2e;">Save Current</button>
                     </div>
                 </div>
 

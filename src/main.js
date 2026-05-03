@@ -86,12 +86,14 @@ const ui = {
     selProfilesMain: el('sel-profiles-main'),
     btnDeleteProfile: el('btn-delete-profile'),
     btnSaveProfile: el('btn-save-profile'),
-    inpProfileName: el('inp-profile-name'),
+    btnAddProfileMain: el('btn-add-profile-main'),
+    btnAddProfileRemap: el('btn-add-profile-remap'),
     hexGrid: el('hex-grid'),
     reportMode: el('report-mode'),
     // Action Picker
     picker: el('action-picker'),
     pickerTitle: el('picker-title'),
+    pickerCurrent: el('picker-current'),
     mainOptions: el('main-options'),
     optRecord: el('opt-record'),
     xboxOptions: el('xbox-options'),
@@ -269,11 +271,15 @@ function getScreenBox(key) {
     const { offsetX, offsetY, scale } = layoutData;
 
     if (box.custom) {
+        let drawY = box.y;
+        if (key === 'L2' || key === 'R2') drawY = offsetY - 70;
+        if (key === 'L1' || key === 'R1') drawY = offsetY - 35;
+
         // Floating boxes are relative to canvas center
         return {
             type: 'rect',
             x: cx + box.colOffset - box.w / 2,
-            y: box.y,
+            y: drawY,
             w: box.w,
             h: box.h
         };
@@ -368,6 +374,15 @@ function showPicker(x, y) {
 
     ui.pickerTitle.textContent = `Map: ${selectedButton}`;
 
+    const m = getMappingFor(selectedButton);
+    if (m && m.targets.length > 0) {
+        const labels = m.targets.map(t => getMappingLabel(t));
+        ui.pickerCurrent.textContent = `Current: ${labels.join(', ')}`;
+        ui.pickerCurrent.style.display = 'block';
+    } else {
+        ui.pickerCurrent.style.display = 'none';
+    }
+
     const isStick = (selectedButton === 'LeftStick' || selectedButton === 'RightStick');
     const isTouchpadWhole = (selectedButton === 'Touchpad');
     const isAxis = HITBOXES[selectedButton].isAxis || isStick;
@@ -390,6 +405,8 @@ function showPicker(x, y) {
     // Show/Hide Axis specific options
     el('opt-mouse-move').style.display = isAxis ? 'block' : 'none';
     el('opt-mouse-scroll').style.display = isAxis ? 'block' : 'none';
+    el('opt-wasd').style.display = isStick ? 'block' : 'none';
+    el('opt-arrows').style.display = isStick ? 'block' : 'none';
 }
 
 function getMappingFor(source) {
@@ -452,6 +469,24 @@ el('opt-mouse-move').onclick = async () => {
 el('opt-mouse-scroll').onclick = async () => {
     const m = getMappingFor(selectedButton);
     m.targets = [{ MouseScroll: { speed: 1.0 } }];
+    await invoke('update_mappings', { mappings: currentState.mappings });
+    ui.picker.style.display = 'none';
+    selectedButton = null;
+    renderMappings();
+};
+
+el('opt-wasd').onclick = async () => {
+    const m = getMappingFor(selectedButton);
+    m.targets = [{ KeyboardStick: { up: 87, down: 83, left: 65, right: 68 } }];
+    await invoke('update_mappings', { mappings: currentState.mappings });
+    ui.picker.style.display = 'none';
+    selectedButton = null;
+    renderMappings();
+};
+
+el('opt-arrows').onclick = async () => {
+    const m = getMappingFor(selectedButton);
+    m.targets = [{ KeyboardStick: { up: 38, down: 40, left: 37, right: 39 } }];
     await invoke('update_mappings', { mappings: currentState.mappings });
     ui.picker.style.display = 'none';
     selectedButton = null;
@@ -542,17 +577,30 @@ async function refreshProfilesList() {
     updateSelect(ui.selProfilesMain);
 }
 
-ui.btnSaveProfile.addEventListener('click', async () => {
-    const name = ui.inpProfileName.value.trim();
-    if (!name) {
-        alert('Please enter a profile name.');
-        return;
-    }
-    await invoke('save_profile', { name: name });
-    ui.inpProfileName.value = '';
-    // After saving, immediately load it to make it active
-    await invoke('load_profile', { name: name });
+async function handleAddProfile() {
+    const name = prompt("Enter new profile name:");
+    if (!name || !name.trim()) return;
+    const trimmed = name.trim();
+    await invoke('save_profile', { name: trimmed });
+    await invoke('load_profile', { name: trimmed });
+    
+    const json = await invoke('get_initial_state');
+    currentState = JSON.parse(json);
+    syncUiToState(currentState);
+    renderMappings();
     refreshProfilesList();
+}
+
+ui.btnAddProfileMain.addEventListener('click', handleAddProfile);
+ui.btnAddProfileRemap.addEventListener('click', handleAddProfile);
+
+ui.btnSaveProfile.addEventListener('click', async () => {
+    if (currentState && currentState.current_profile_name) {
+        await invoke('save_profile', { name: currentState.current_profile_name });
+        const oldText = ui.btnSaveProfile.textContent;
+        ui.btnSaveProfile.textContent = "Saved!";
+        setTimeout(() => ui.btnSaveProfile.textContent = oldText, 1000);
+    }
 });
 
 const handleProfileChange = async (e) => {
@@ -648,6 +696,37 @@ function getKeyName(vk) {
     return special[vk] || `Key ${vk}`;
 }
 
+function getMappingLabel(t) {
+    if (t.Xbox !== undefined) {
+        return `Xbox ${XBOX_NAMES[t.Xbox] || t.Xbox}`;
+    } else if (t === 'XboxLT') {
+        return 'Xbox LT';
+    } else if (t === 'XboxRT') {
+        return 'Xbox RT';
+    } else if (t === 'XboxLS') {
+        return 'Xbox LS';
+    } else if (t === 'XboxRS') {
+        return 'Xbox RS';
+    } else if (t.Keyboard !== undefined) {
+        return getKeyName(t.Keyboard);
+    } else if (t.KeyboardStick !== undefined) {
+        if (t.KeyboardStick.up === 87) {
+            return 'WASD';
+        } else if (t.KeyboardStick.up === 38) {
+            return 'Arrows';
+        } else {
+            return 'Stick to Keys';
+        }
+    } else if (t.Mouse !== undefined) {
+        return `Mouse ${['Left', 'Middle', 'Right'][t.Mouse] || t.Mouse}`;
+    } else if (t.MouseMove !== undefined) {
+        return 'Mouse Move';
+    } else if (t.MouseScroll !== undefined) {
+        return 'Mouse Scroll';
+    }
+    return 'Unknown';
+}
+
 // Build the mapping list DOM (call only when data changes)
 function renderMappings() {
     if (!currentState || !currentState.mappings) return;
@@ -694,6 +773,15 @@ function renderMappings() {
             } else if (t.Keyboard !== undefined) {
                 type = 'kb';
                 label = getKeyName(t.Keyboard);
+            } else if (t.KeyboardStick !== undefined) {
+                type = 'kb';
+                if (t.KeyboardStick.up === 87) {
+                    label = 'WASD';
+                } else if (t.KeyboardStick.up === 38) {
+                    label = 'Arrows';
+                } else {
+                    label = 'Stick to Keys';
+                }
             } else if (t.Mouse !== undefined) {
                 type = 'mouse';
                 label = `Mouse ${['Left', 'Middle', 'Right'][t.Mouse] || t.Mouse}`;
